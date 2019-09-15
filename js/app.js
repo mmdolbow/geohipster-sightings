@@ -5,13 +5,13 @@
  * Questions: milo@codefor.nl
  * 
  */
-var maptype = "mapbox"; // or "world"
+var maptype = "world"; // or "mapbox"
 
 /**
  * Countryset gets filled after reading all the hipsters. and is used to color the worldmap.
  * I intend to use a full ramp, but am working out how to do that.
- */ 
-var countryset = {}; 
+ */
+var countryset = {};
 
 $(document).ready(function () {
     var map = setMap(maptype);
@@ -73,11 +73,11 @@ function getHipsters(csv) {
     });
     hipsters.addData(csv);
     console.log(countryset);
-    if (maptype === "mapbox") {
+    //if (maptype === "mapbox") {
         mapboxMap(map);
-    } else {
+    //} else {
         worldMap(map);
-    }
+    //}
     return hipsters;
 }
 
@@ -97,6 +97,10 @@ function setMap(type) {
     return map;
 }
 
+/**
+ * Load Mapbox base layer
+ * @param {*} map 
+ */
 function mapboxMap(map) {
     var mapbox_token = 'pk.eyJ1IjoibWlibG9uIiwiYSI6ImNrMGtvajhwaDBsdHQzbm16cGtkcHZlaXUifQ.dJTOE8FJc801TAT0yUhn3g';
     L.tileLayer(
@@ -114,16 +118,19 @@ function worldMap(map, max = 100) {
      * @param {*} start 
      * @param {*} end 
      */
-    function getRampColor(percent, start, end) {
-        if (isNaN(percent)) {
-            percent = 0;
+    function getRampColor(value) {
+        if (isNaN(value)) return "#ccc";
+        if (value < 10) return "#BBC5BE";
+        if (value < 50) return "#AABEB1";
+        if (value < 100) return "#99B6A3";
+        if (value < 250) return "#88AF95";
+        if (value < 500) return "#78A888";
+        if (value < 1000) return "#67A17A";
+        if (value < 2000) {
+            return "#569A6C";
+        } else {
+            return "#45925E";
         }
-        var a = percent / 100,
-            b = (end - start) * a,
-            c = b + start;
-
-        // Return a CSS HSL string
-        return 'hsl(' + c + ', 100%, 50%)';
     }
 
     function zoomToFeature(e) {
@@ -156,28 +163,23 @@ function worldMap(map, max = 100) {
         });
     }
     function worldStyle(feature) {
-        if (isNaN(countryset[feature.properties.NAME])) {
-            // No hipsters in this country (or not registered correctly)
-            fillcolor = '#ccc';
-        } else {
-            // How many hipsters?
-            var hipsterspercountry = countryset[feature.properties.NAME];
-            var fillcolor = "#2f7d3d";
-            //var fillcolor = getRampColor(hipsterspercountry,0, 191); // Needs more work
-        }
+        // How many hipsters?
+        var hipsterspercountry = countryset[feature.properties.NAME];
+        //var fillcolor = "#2f7d3d";
+        var fillcolor = getRampColor(hipsterspercountry); // Needs more work
+
 
         return {
             fillColor: fillcolor,
             weight: 1,
             opacity: 1,
             color: '#7d7b6d',
-            fillOpacity: 1
+            fillOpacity: .5
         };
     };
 
     $.getJSON('./data/worldmap.geojson', function (response) {
         worldLayer = L.geoJSON(response, { style: worldStyle, onEachFeature: onEachFeature }).addTo(map);
-        console.log(worldLayer);
     });
 
 }
