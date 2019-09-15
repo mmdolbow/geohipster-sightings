@@ -7,7 +7,7 @@
  */
 
 $(document).ready(function () {
-    var map = setMap();
+    var map = setMap("mapbox");
     getData(map);
 });
 
@@ -57,7 +57,8 @@ function getHipsters(csv) {
         pointToLayer: function (feature, latlng) {
             return L.marker(latlng);
         },
-        firstLineTitles: true
+        firstLineTitles: true,
+        fieldSeparator: ';'
     });
     hipsters.addData(csv);
     return hipsters;
@@ -66,8 +67,7 @@ function getHipsters(csv) {
 /**
  * Initialize the map
  */
-function setMap() {
-    var mapbox_token = 'pk.eyJ1IjoibWlibG9uIiwiYSI6ImNrMGtvajhwaDBsdHQzbm16cGtkcHZlaXUifQ.dJTOE8FJc801TAT0yUhn3g';
+function setMap(type) {
     // Set up the map
     map = new L.Map('map', {
         center: [0, 0],
@@ -76,11 +76,69 @@ function setMap() {
         maxZoom: 18,
         zoomControl: false
     });
+
+    if (type === "mapbox") {
+        mapboxMap(map);
+    } else {
+        worldMap(map);
+    }
+    return map;
+}
+
+function mapboxMap(map) {
+    var mapbox_token = 'pk.eyJ1IjoibWlibG9uIiwiYSI6ImNrMGtvajhwaDBsdHQzbm16cGtkcHZlaXUifQ.dJTOE8FJc801TAT0yUhn3g';
     L.tileLayer(
         'https://api.mapbox.com/styles/v1/mapbox/emerald-v8/tiles/{z}/{x}/{y}?access_token=' + mapbox_token, {
         tileSize: 512,
         zoomOffset: -1,
         attribution: '© <a href="https://www.mapbox.com/map-feedback/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
-    return map;
+}
+
+function worldMap(map) {
+    function zoomToFeature(e) {
+        var layer = e.target;
+        map.fitBounds(layer.getBounds());
+    }
+
+    function resetHighlight(e) {
+        var layer = e.target;
+        worldLayer.resetStyle(layer);
+    }
+
+    function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle({
+            color: '#fff'
+        });
+
+        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+            layer.bringToFront();
+        }
+
+    }
+
+    function onEachFeature(feature, layer) {
+        layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+    function worldStyle(feature) {
+        // background color
+        var fillcolor = "#2f7d3d";
+        return {
+            fillColor: fillcolor,
+            weight: 1,
+            opacity: 1,
+            color: '#7d7b6d',
+            fillOpacity: 1
+        };
+    };
+
+    $.getJSON('./data/worldmap.geojson', function (response) {
+        worldLayer = L.geoJSON(response, { style: worldStyle, onEachFeature: onEachFeature }).addTo(map);
+    });
+
 }
