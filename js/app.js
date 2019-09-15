@@ -5,10 +5,18 @@
  * Questions: milo@codefor.nl
  * 
  */
+var maptype = "mapbox"; // or "world"
+
+/**
+ * Countryset gets filled after reading all the hipsters. and is used to color the worldmap.
+ * I intend to use a full ramp, but am working out how to do that.
+ */ 
+var countryset = {}; 
 
 $(document).ready(function () {
-    var map = setMap("mapbox");
+    var map = setMap(maptype);
     getData(map);
+
 });
 
 /**
@@ -48,11 +56,14 @@ function getData(map) {
 function getHipsters(csv) {
     var hipsters = L.geoCsv(null, {
         onEachFeature: function (feature, layer) {
+            var country = feature.properties.country ? '<br/><i>(' + feature.properties.country + ')</i>' : ''
             var popup = '<a href="http://www.twitter.com/' + feature.properties.account + '"><b>' + feature.properties.name + '</b> &ndash; @' + feature.properties.account + '</a><br>';
             popup += '<b>' + feature.properties.followers + '</b> followers and following <b>' + feature.properties.following + '</b> other users.<br>';
             popup += 'On average <b>' + feature.properties.tweetspermonth + '</b> tweets per month.<br>'
             popup += 'Active since <b>' + feature.properties.accountagemonths + '</b> months.';
+            popup += country;
             layer.bindPopup(popup);
+            countryset[feature.properties.country] = countryset[feature.properties.country] ? countryset[feature.properties.country] + 1 : 1;
         },
         pointToLayer: function (feature, latlng) {
             return L.marker(latlng);
@@ -61,6 +72,12 @@ function getHipsters(csv) {
         fieldSeparator: ';'
     });
     hipsters.addData(csv);
+    console.log(countryset);
+    if (maptype === "mapbox") {
+        mapboxMap(map);
+    } else {
+        worldMap(map);
+    }
     return hipsters;
 }
 
@@ -77,11 +94,6 @@ function setMap(type) {
         zoomControl: false
     });
 
-    if (type === "mapbox") {
-        mapboxMap(map);
-    } else {
-        worldMap(map);
-    }
     return map;
 }
 
@@ -95,7 +107,25 @@ function mapboxMap(map) {
     }).addTo(map);
 }
 
-function worldMap(map) {
+function worldMap(map, max = 100) {
+    /**
+     * Determine the color for a country based on the ammount of hipsters
+     * @param {*} percent 
+     * @param {*} start 
+     * @param {*} end 
+     */
+    function getRampColor(percent, start, end) {
+        if (isNaN(percent)) {
+            percent = 0;
+        }
+        var a = percent / 100,
+            b = (end - start) * a,
+            c = b + start;
+
+        // Return a CSS HSL string
+        return 'hsl(' + c + ', 100%, 50%)';
+    }
+
     function zoomToFeature(e) {
         var layer = e.target;
         map.fitBounds(layer.getBounds());
@@ -126,8 +156,16 @@ function worldMap(map) {
         });
     }
     function worldStyle(feature) {
-        // background color
-        var fillcolor = "#2f7d3d";
+        if (isNaN(countryset[feature.properties.NAME])) {
+            // No hipsters in this country (or not registered correctly)
+            fillcolor = '#ccc';
+        } else {
+            // How many hipsters?
+            var hipsterspercountry = countryset[feature.properties.NAME];
+            var fillcolor = "#2f7d3d";
+            //var fillcolor = getRampColor(hipsterspercountry,0, 191); // Needs more work
+        }
+
         return {
             fillColor: fillcolor,
             weight: 1,
@@ -139,6 +177,7 @@ function worldMap(map) {
 
     $.getJSON('./data/worldmap.geojson', function (response) {
         worldLayer = L.geoJSON(response, { style: worldStyle, onEachFeature: onEachFeature }).addTo(map);
+        console.log(worldLayer);
     });
 
 }
