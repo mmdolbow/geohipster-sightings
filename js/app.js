@@ -1,8 +1,10 @@
 /**
  * JavaScript to produce a map of geoHipster sightings
  * 
- * freely based on from (c) Ralph Straumann, www.ralphstraumann.ch, 2014
+ * Originally freely based on from (c) Ralph Straumann, www.ralphstraumann.ch, 2014
  * Questions: milo@codefor.nl
+ * 
+ * Edited by Mike Dolbow with a goal of replacing our sightings map, not our Twitter follower map, 2019-11-25
  * 
  */
 var maptype = "world"; // or "mapbox"
@@ -10,6 +12,7 @@ var maptype = "world"; // or "mapbox"
 /**
  * Countryset gets filled after reading all the hipsters. and is used to color the worldmap.
  * I intend to use a full ramp, but am working out how to do that.
+ * From Mike: since we don't have that column in the sightings data, let's skip that part. 2019-11-25
  */
 var countryset = {};
 
@@ -30,14 +33,16 @@ function getData(map) {
         /**
          * The url should be replaced by a maintained source and may also be changed to a
          * url that produces geojson which would mean this script would have to be
-         * rewritten slightly
+         * rewritten slightly.
+         * Mike has attempted to load in a new CSV here for data of sightings, not Twitter followers.
          */
-        //url: 'http://www.ralphstraumann.ch/projects/geohipster-map/user_geotable.csv',
-        url: './data/user_geotable.csv',
+        //Original url: 'http://www.ralphstraumann.ch/projects/geohipster-map/user_geotable.csv',
+        url: './data/sighting_table.csv',
         error: function () {
             alert('Data loading didn\'t work, unfortunately.');
         },
         success: function (response) {
+            console.log("Hipster table loaded. Proceeding to pour PBR.")
             csv = getHipsters(response);
             markers = new L.MarkerClusterGroup();
             markers.addLayer(csv);
@@ -56,27 +61,28 @@ function getData(map) {
 function getHipsters(csv) {
     var hipsters = L.geoCsv(null, {
         onEachFeature: function (feature, layer) {
-            var country = feature.properties.country ? '<br/><i>(' + feature.properties.country + ')</i>' : ''
-            var popup = '<a href="http://www.twitter.com/' + feature.properties.account + '"><b>' + feature.properties.name + '</b> &ndash; @' + feature.properties.account + '</a><br>';
-            popup += '<b>' + feature.properties.followers + '</b> followers and following <b>' + feature.properties.following + '</b> other users.<br>';
-            popup += 'On average <b>' + feature.properties.tweetspermonth + '</b> tweets per month.<br>'
-            popup += 'Active since <b>' + feature.properties.accountagemonths + '</b> months.';
-            popup += country;
+            //var country = feature.properties.country ? '<br/><i>(' + feature.properties.country + ')</i>' : ''
+            var popup = '<b>GeoHipster: '+feature.properties.geohipster +'</b><br>';
+            popup += 'Location: ' + feature.properties.location +'<br>';
+            popup += feature.properties.photourl;
+            //popup += country;
             layer.bindPopup(popup);
-            countryset[feature.properties.country] = countryset[feature.properties.country] ? countryset[feature.properties.country] + 1 : 1;
+            //countryset[feature.properties.country] = countryset[feature.properties.country] ? countryset[feature.properties.country] + 1 : 1;
         },
         pointToLayer: function (feature, latlng) {
             return L.marker(latlng);
         },
         firstLineTitles: true,
-        fieldSeparator: ';'
+        titles: ['geohipster', 'lat', 'lng', 'location','photourl'],
+        deleteDoubleQuotes: true,
+        fieldSeparator: ';' //semicolon important so you can have commas in cell
     });
     hipsters.addData(csv);
-    console.log(countryset);
+    //console.log(countryset);
     //if (maptype === "mapbox") {
         mapboxMap(map);
     //} else {
-        worldMap(map);
+        //worldMap(map);
     //}
     return hipsters;
 }
@@ -91,7 +97,7 @@ function setMap(type) {
         zoom: 2,
         minZoom: 2,
         maxZoom: 18,
-        zoomControl: false
+        zoomControl: true //not sure why we'd disable this -- Mike
     });
 
     return map;
@@ -164,9 +170,9 @@ function worldMap(map, max = 100) {
     }
     function worldStyle(feature) {
         // How many hipsters?
-        var hipsterspercountry = countryset[feature.properties.NAME];
-        //var fillcolor = "#2f7d3d";
-        var fillcolor = getRampColor(hipsterspercountry); // Needs more work
+        //var hipsterspercountry = countryset[feature.properties.NAME];
+        var fillcolor = "#2f7d3d";
+        //var fillcolor = getRampColor(hipsterspercountry); // Needs more work
 
 
         return {
